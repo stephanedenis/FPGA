@@ -1,0 +1,34 @@
+# Storey Peak / Stratix V GS
+set_global_assignment -name FAMILY "Stratix V"
+set_global_assignment -name DEVICE 5SGSMD5K1F40C2
+set_global_assignment -name TOP_LEVEL_ENTITY trivial
+set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+set_global_assignment -name VERILOG_FILE trivial.v
+set_global_assignment -name FITTER_EFFORT "FAST FIT"
+set_global_assignment -name PHYSICAL_SYNTHESIS_EFFORT FAST
+set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
+set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
+set_global_assignment -name LAST_QUARTUS_VERSION "21.1.1 Standard Edition"
+
+# Horloge 125 MHz (validé racerxdl/pcieledblink)
+set_location_assignment PIN_M23 -to clkin
+set_instance_assignment -name IO_STANDARD "SSTL-135" -to clkin
+set_global_assignment -name SDC_FILE trivial.sdc
+
+# LEDs (validé racerxdl/pcieledblink)
+set_location_assignment PIN_A8  -to LED[7]
+set_location_assignment PIN_B8  -to LED[6]
+set_location_assignment PIN_C8  -to LED[5]
+set_location_assignment PIN_C9  -to LED[4]
+set_location_assignment PIN_C10 -to LED[3]
+set_location_assignment PIN_B10 -to LED[2]
+set_location_assignment PIN_A10 -to LED[1]
+set_location_assignment PIN_A11 -to LED[0]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to LED[0]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to LED[1]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to LED[2]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to LED[3]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to LED[4]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to LED[5]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to LED[6]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to LED[7]

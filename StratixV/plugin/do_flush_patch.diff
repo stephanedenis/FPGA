@@ -1,0 +1,74 @@
+--- a/src/jtag_hw_otma.cpp
++++ b/src/jtag_hw_otma.cpp
+@@ find_devs — après mpsse_open @@
++    if (ctx) {
++      /* Fix Bug 3: TCK explicite 3 MHz */
++      mpsse_set_frequency(ctx, 3000000);
++    }
+
+@@ remplacer le corps complet de do_flush @@
++int64_t do_flush(void *unused_void, int bool_val, uint32_t index_val) {
++  static FILE *logf = NULL;
++  static int call_no = 0;
++  if (!logf) {
++    logf = fopen("/tmp/otma_flush.log", "a");
++    if (logf) setvbuf(logf, NULL, _IOLBF, 0);
++  }
++  if (logf) fprintf(logf, "do_flush #%d: bits=%u tdi[0]=%02x\n",
++                    ++call_no, tdi_data_count,
++                    tdi_data_count > 0 ? tdi_data[0] : 0);
++
++  /* Fix Bug 2: détection pattern SLD bypass (FPGA vierge) */
++  bool all_tms_zero = true, all_tdi_one = true;
++  if (tdi_data_count > 0) {
++    for (unsigned k = 0; k < tdi_data_count && all_tms_zero; k++)
++      if ((tms_data[k/8] >> (k%8)) & 1) all_tms_zero = false;
++    if (all_tms_zero)
++      for (unsigned k = 0; k < tdi_data_count && all_tdi_one; k++)
++        if (!((tdi_data[k/8] >> (k%8)) & 1)) all_tdi_one = false;
++  }
++  const bool is_sld_candidate = all_tms_zero && all_tdi_one && tdi_data_count == 128;
++
++  /* Fix Bug 1: mpsse_clock_data() pour TMS=0 (bulk), mpsse_clock_tms_cs() pour TMS=1 */
++  unsigned i = 0;
++  while (i < (unsigned)tdi_data_count) {
++    int tms = (tms_data[i/8] >> (i%8)) & 1;
++    if (tms == 0) {
++      unsigned end = i + 1;
++      while (end < (unsigned)tdi_data_count &&
++             !((tms_data[end/8] >> (end%8)) & 1)) end++;
++      mpsse_clock_data(ctx, tdi_data, i, tdo_data, i, end - i, JTAG_MODE);
++      tdo_data_count += end - i;
++      i = end;
++    } else {
++      uint8_t tdi = (tdi_data[i/8] >> (i%8)) & 1;
++      mpsse_clock_tms_cs(ctx, tms_data, i, tdo_data, i, 1, tdi, JTAG_MODE);
++      tdo_data_count++; i++;
++    }
++  }
++
++  int rc = mpsse_flush(ctx);
++  if (logf) fprintf(logf, "do_flush #%d done: rc=%d tdo_count=%u tdo[0]=%02x\n",
++                    call_no, rc, tdo_data_count,
++                    tdo_data_count > 0 ? tdo_data[0] : 0);
++
++  /* Fix Bug 2: substituer TDO si bypass détecté */
++  if (is_sld_candidate) {
++    unsigned bc = (tdo_data_count + 7) / 8;
++    bool all_ones = true;
++    for (unsigned k = 0; k < bc && all_ones; k++)
++      if (tdo_data[k] != 0xFF) all_ones = false;
++    if (all_ones) {
++      if (logf) fprintf(logf, "do_flush #%d: SLD bypass → synth 0x00\n", call_no);
++      memset(tdo_data, 0, bc);
++    }
++  }
++
++  server_ops.p_op_store_tdo(server_ops_data, (uint32_t *)tdo_data, tdo_data_count);
++  tdi_data_count = 0; tdo_data_count = 0;
++  memset(tdi_data, 0, DATA_SIZE_BYTES);
++  memset(tms_data, 0, DATA_SIZE_BYTES);
++  memset(tdo_data, 0, DATA_SIZE_BYTES);
++  server_ops.p_op_indicate_flush(server_ops_data);
++  return 1;
++}
